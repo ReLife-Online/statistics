@@ -51,7 +51,7 @@ export class StatisticsSystem extends RegisteredSystem {
     populationSource.target = '_blank'; populationSource.rel = 'noopener noreferrer';
     populationFooter.append(populationLabel,populationValue,populationSource);
     this.loadPopulation(populationValue);
-    worldSection.append(populationFooter); panels.append(worldSection);
+    panels.append(worldSection);
     const debt = this.node('section','stats-section terminal-pane streaming-pane');
     debt.append(this.node('h2','','DEBT CLOCK STREAM'));
     const debtFeed = this.node('div','terminal-feed');
@@ -98,7 +98,7 @@ export class StatisticsSystem extends RegisteredSystem {
       ['Internet users','number-of-internet-users','people'],
       ['Internet usage share','share-of-individuals-using-the-internet','%']
     ]);
-    dashboard.append(panels);document.body.append(dashboard);
+    dashboard.append(panels,populationFooter);document.body.append(dashboard);
     const fade = animation.animate(dashboard,[{opacity:0,transform:'translateY(24px)'},{opacity:1,transform:'translateY(0)'}],{duration:1000,easing:'ease-out',fill:'both'});
     if (fade) fade.finished.catch(()=>{});
     await this.loadDebt(debtFeed);

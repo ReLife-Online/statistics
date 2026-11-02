@@ -48,8 +48,10 @@ export class StatisticsSystem extends RegisteredSystem {
     const estimateLabel = this.node('span','population-estimate-label','LIVE ESTIMATE');
     const populationValue = this.node('strong','population-live-value','—');
     populationValue.setAttribute('aria-label','Estimated world population');
-    populationRow.append(estimateLabel,populationValue);
-    populationFooter.append(populationLabel,populationRow);
+    const populationText = this.node('div','population-text-stack');
+    populationText.append(populationLabel,estimateLabel);
+    populationRow.append(populationText,populationValue);
+    populationFooter.append(populationRow);
     this.loadPopulation(populationValue);
     panels.append(worldSection);
     const debt = this.node('section','stats-section terminal-pane streaming-pane');

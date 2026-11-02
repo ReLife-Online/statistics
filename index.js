@@ -1,4 +1,4 @@
-import { StatisticsSystem } from './systems/statistics.js';
+import { StatisticsSystem } from './systems/statistics.js?v=statistics-1.1.6';
 import { LayoutSystem, VectorSystem, AnimationSystem, MorphingSystem, WebAssemblySystem, WebGPUSystem, AuditSystem } from './systems/runtime.js';
 
 class ReLifeRuntime {
@@ -45,6 +45,7 @@ class ReLifeRuntime {
     style.textContent += '.terminal-dashboard>.population-footer .population-live-value{font-size:clamp(1.55rem,3.1vw,2.65rem)}@media(max-width:600px){.terminal-dashboard>.population-footer .population-live-value{font-size:clamp(1.2rem,4.2vw,1.7rem)}}';
     style.textContent += '.terminal-dashboard>.population-footer .population-value-row{display:flex;align-items:baseline;justify-content:center;gap:10px;white-space:nowrap}.terminal-dashboard>.population-footer .population-estimate-label{font-size:.9rem;letter-spacing:.07em;color:#8dbbe9}.terminal-dashboard>.population-footer .population-label{display:block}@media(max-width:600px){.terminal-dashboard>.population-footer .population-value-row{gap:6px}.terminal-dashboard>.population-footer .population-estimate-label{font-size:.7rem}}';
     style.textContent += '.terminal-dashboard>.population-footer .population-value-row{display:flex;align-items:center;justify-content:center;gap:10px}.terminal-dashboard>.population-footer .population-text-stack{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;line-height:1.05;white-space:nowrap}.terminal-dashboard>.population-footer .population-label,.terminal-dashboard>.population-footer .population-estimate-label{display:block;margin:0;text-align:right}@media(max-width:600px){.terminal-dashboard>.population-footer .population-value-row{gap:6px}}';
+    style.textContent += '.terminal-dashboard>.population-footer{width:max-content;max-width:94vw}.terminal-dashboard>.population-footer .population-value-row{display:grid;grid-template-columns:max-content max-content;align-items:center;column-gap:10px}.terminal-dashboard>.population-footer .population-text-stack{display:grid;grid-template-rows:auto auto;align-content:center;justify-items:end;row-gap:0}.terminal-dashboard>.population-footer .population-label,.terminal-dashboard>.population-footer .population-estimate-label{position:static;display:block;width:auto;flex:none;white-space:nowrap;line-height:1.1;text-align:right}.terminal-dashboard>.population-footer .population-live-value{grid-column:2;grid-row:1;align-self:center;margin:0}@media(max-width:600px){.terminal-dashboard>.population-footer .population-value-row{column-gap:6px}}';
     document.head.append(style);
     const main = document.createElement('main');
     const aura = document.createElement('div'); aura.className = 'aura';

@@ -75,32 +75,93 @@ export class StatisticsSystem extends RegisteredSystem {
       const topics = this.registry.state.worldTopics;
       this.appendFeed(worldFeed,topics[this.registry.state.worldSequence++ % topics.length]);
     },1600);
-    const contextPane = this.node('section','stats-section terminal-pane');
-    contextPane.append(this.node('h2','','Population & Health'));
-    contextPane.append(this.node('p','disclaimer','Publisher-updated interactive charts; not second-by-second measurements.'));
-    this.embedCharts(contextPane,[
-      ['Population growth','population-growth-rate'],
-      ['Life expectancy','life-expectancy'],
-      ['Child mortality','child-mortality'],
-      ['Food supply','daily-per-capita-caloric-supply']
+    const health = this.node('section','stats-section terminal-pane streaming-pane');
+    health.append(this.node('h2','','POPULATION & HEALTH STREAM'));
+    const healthFeed = this.node('div','terminal-feed');
+    healthFeed.setAttribute('role','log'); healthFeed.setAttribute('aria-label','Population and health statistics');
+    health.append(healthFeed); panels.append(health);
+    const environment = this.node('section','stats-section terminal-pane streaming-pane');
+    environment.append(this.node('h2','','ENVIRONMENT, ENERGY & SOCIETY STREAM'));
+    const environmentFeed = this.node('div','terminal-feed');
+    environmentFeed.setAttribute('role','log'); environmentFeed.setAttribute('aria-label','Environment energy and society statistics');
+    environment.append(environmentFeed); panels.append(environment);
+    this.startResearchStream(healthFeed,[
+      ['Population growth','population-growth-rate','% per year'],
+      ['Life expectancy','life-expectancy','years'],
+      ['Under-five mortality','child-mortality','%'],
+      ['Daily food supply','daily-per-capita-caloric-supply','kcal/person/day']
     ]);
-    panels.append(contextPane);
-    const monitorPane = this.node('section','stats-section terminal-pane');
-    monitorPane.append(this.node('h2','','Environment, Energy & Society'));
-    monitorPane.append(this.node('p','disclaimer','Latest published research series, automatically updated by their provider.'));
-    this.embedCharts(monitorPane,[
-      ['Annual CO₂ emissions','annual-co2-emissions-per-country'],
-      ['CO₂ per person','co2-emissions-per-capita'],
-      ['Renewable energy share','renewable-share-energy'],
-      ['Internet users','number-of-internet-users'],
-      ['Internet usage share','share-of-individuals-using-the-internet']
+    this.startResearchStream(environmentFeed,[
+      ['Annual CO₂ emissions','annual-co2-emissions-per-country','tonnes/year'],
+      ['CO₂ per capita','co2-emissions-per-capita','tonnes/person/year'],
+      ['Renewable energy share','renewable-share-energy','%'],
+      ['Internet users','number-of-internet-users','people'],
+      ['Internet usage share','share-of-individuals-using-the-internet','%']
     ]);
-    panels.append(monitorPane);
     dashboard.append(panels);document.body.append(dashboard);
     const fade = animation.animate(dashboard,[{opacity:0,transform:'translateY(24px)'},{opacity:1,transform:'translateY(0)'}],{duration:1000,easing:'ease-out',fill:'both'});
     if (fade) fade.finished.catch(()=>{});
     await this.loadDebt(debtFeed);
     this.emit('dashboard-opened');
+  }
+  startResearchStream(container, sources) {
+    const state = {next:0, records:new Map(), lastRefresh:0, refreshing:false};
+    const refresh = async () => {
+      if(state.refreshing) return;
+      state.refreshing = true;
+      this.appendFeed(container,'DATASET / Refreshing published research series (not live measurements)');
+      try {
+        for(const [label,slug,unit] of sources) {
+          const controller = new AbortController();
+          const timeout = setTimeout(()=>controller.abort(),18000);
+          try {
+            const response = await fetch('https://ourworldindata.org/grapher/'+slug+'.csv',{signal:controller.signal,cache:'no-cache'});
+            if(!response.ok) throw new Error('HTTP '+response.status);
+            const csv = await response.text();
+            const lines = csv.split(/\r?\n/);
+            const candidates = new Map();
+            for(let i=1;i<lines.length;i++) {
+              const line = lines[i];
+              if(!line) continue;
+              const cells = line.split(',');
+              if(cells.length!==4) continue;
+              const year = Number(cells[2]), value = Number(cells[3]);
+              if(!Number.isInteger(year)||!Number.isFinite(value))continue;
+              const code=cells[1],entity=cells[0];
+              if(code==='OWID_WRL'||entity==='World'||code==='USA'||code==='IND'||code==='FIN'||code==='NLD') {
+                const key=code==='OWID_WRL'||entity==='World'?'World':entity;
+                const prior=candidates.get(key);
+                if(!prior||year>prior.year)candidates.set(key,{year,value});
+              }
+            }
+            if(!candidates.size) throw new Error('No supported country/world records');
+            state.records.set(slug,{label,unit,candidates,source:'ourworldindata.org/grapher/'+slug});
+            this.appendFeed(container,'SOURCE OK / '+label+' · '+candidates.size+' geographic series');
+          } catch(error) {
+            this.appendFeed(container,'SOURCE UNAVAILABLE / '+label+' · '+String(error).slice(0,75));
+          } finally { clearTimeout(timeout); }
+        }
+        state.lastRefresh=Date.now();
+      } finally {state.refreshing=false;}
+    };
+    const output=()=>{
+      const [label,slug]=sources[state.next++%sources.length];
+      const record=state.records.get(slug);
+      if(!record){this.appendFeed(container,'WAITING / '+label+' · published data pending');return;}
+      const preferred=['World','United States','India','Finland','Netherlands'];
+      const available=preferred.filter(key=>record.candidates.has(key));
+      const key=available[Math.floor((state.next-1)/sources.length)%available.length];
+      if(!key){this.appendFeed(container,'DATA UNAVAILABLE / '+label);return;}
+      const {year,value}=record.candidates.get(key);
+      const display=new Intl.NumberFormat('en-US',{maximumFractionDigits:2}).format(value);
+      this.appendFeed(container,label.toUpperCase()+' / '+key+' / '+display+' '+record.unit+' / '+year+' · published');
+    };
+    this.appendFeed(container,'SYSTEM / PUBLISHER DATA STREAM INITIALIZED');
+    this.appendFeed(container,'NOTICE / Repeated lines are refreshed displays of latest published annual data');
+    refresh();
+    const stream=setInterval(output,1400);
+    const updater=setInterval(refresh,1800000);
+    (this.registry.state.researchIntervals??=[]).push(stream,updater);
   }
   embedCharts(container, charts) {
     const tabs = this.node('div','chart-tabs');
@@ -189,5 +250,5 @@ export class StatisticsSystem extends RegisteredSystem {
       this.emit('debt-unavailable',{reason:String(error)});
     }
   }
-  dispose() { if(this.registry.state.interval) clearInterval(this.registry.state.interval); if(this.registry.state.worldInterval) clearInterval(this.registry.state.worldInterval); if(this.registry.state.populationInterval) clearInterval(this.registry.state.populationInterval); if(this.registry.state.populationRefresh) clearInterval(this.registry.state.populationRefresh); }
+  dispose() { if(this.registry.state.interval) clearInterval(this.registry.state.interval); if(this.registry.state.worldInterval) clearInterval(this.registry.state.worldInterval); if(this.registry.state.populationInterval) clearInterval(this.registry.state.populationInterval); if(this.registry.state.populationRefresh) clearInterval(this.registry.state.populationRefresh); for(const timer of this.registry.state.researchIntervals||[]) clearInterval(timer); }
 }

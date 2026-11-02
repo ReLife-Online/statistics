@@ -44,13 +44,13 @@ export class StatisticsSystem extends RegisteredSystem {
     worldSection.append(worldFeed);
     const populationFooter = this.node('div','population-footer');
     const populationLabel = this.node('span','population-label','WORLD POPULATION / LIVE ESTIMATE');
-    const populationFrame = this.node('iframe','population-inline-frame');
-    populationFrame.src = 'https://populationclock.org/embed';
-    populationFrame.title = 'Live world population estimate';
-    populationFrame.loading = 'eager';
-    populationFrame.referrerPolicy = 'strict-origin-when-cross-origin';
-    populationFrame.setAttribute('sandbox','allow-scripts allow-same-origin');
-    populationFooter.append(populationLabel,populationFrame);
+    const populationValue = this.node('strong','population-live-value','—');
+    populationValue.setAttribute('aria-label','Estimated world population');
+    const populationSource = this.node('a','population-source','populationclock.org · modeled projection');
+    populationSource.href = 'https://populationclock.org/';
+    populationSource.target = '_blank'; populationSource.rel = 'noopener noreferrer';
+    populationFooter.append(populationLabel,populationValue,populationSource);
+    this.loadPopulation(populationValue);
     worldSection.append(populationFooter); panels.append(worldSection);
     const debt = this.node('section','stats-section terminal-pane streaming-pane');
     debt.append(this.node('h2','','DEBT CLOCK STREAM'));
@@ -128,6 +128,32 @@ export class StatisticsSystem extends RegisteredSystem {
     });
     container.append(tabs,viewport);
   }
+  async loadPopulation(value) {
+    const update = async () => {
+      try {
+        const response = await fetch('https://populationclock.org/embed-data.json',{cache:'no-store'});
+        if(!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        if(!Number.isInteger(data.currentYear) || !Number.isFinite(data.world?.start) || !Number.isFinite(data.world?.end)) throw new Error('Invalid population data');
+        const start = Date.UTC(data.currentYear,0,1);
+        const end = Date.UTC(data.currentYear+1,0,1);
+        this.registry.state.populationProjection = {start,end,from:data.world.start,to:data.world.end};
+        this.emit('population-data-loaded',{year:data.currentYear});
+      } catch(error) {
+        this.emit('population-data-unavailable',{reason:String(error)});
+        if(!this.registry.state.populationProjection) value.textContent='Population estimate unavailable';
+      }
+    };
+    const tick = () => {
+      const model = this.registry.state.populationProjection;
+      if(!model || !value.isConnected) return;
+      const fraction = Math.min(1,Math.max(0,(Date.now()-model.start)/(model.end-model.start)));
+      value.textContent = Math.floor(model.from+(model.to-model.from)*fraction).toLocaleString('en-US');
+    };
+    await update(); tick();
+    this.registry.state.populationInterval = setInterval(tick,1000);
+    this.registry.state.populationRefresh = setInterval(update,3600000);
+  }
   appendFeed(container, message) {
     if (!container?.isConnected) return;
     const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 75;
@@ -163,5 +189,5 @@ export class StatisticsSystem extends RegisteredSystem {
       this.emit('debt-unavailable',{reason:String(error)});
     }
   }
-  dispose() { if(this.registry.state.interval) clearInterval(this.registry.state.interval); if(this.registry.state.worldInterval) clearInterval(this.registry.state.worldInterval); }
+  dispose() { if(this.registry.state.interval) clearInterval(this.registry.state.interval); if(this.registry.state.worldInterval) clearInterval(this.registry.state.worldInterval); if(this.registry.state.populationInterval) clearInterval(this.registry.state.populationInterval); if(this.registry.state.populationRefresh) clearInterval(this.registry.state.populationRefresh); }
 }

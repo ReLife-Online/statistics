@@ -46,10 +46,7 @@ export class StatisticsSystem extends RegisteredSystem {
     const populationLabel = this.node('span','population-label','WORLD POPULATION / LIVE ESTIMATE');
     const populationValue = this.node('strong','population-live-value','—');
     populationValue.setAttribute('aria-label','Estimated world population');
-    const populationSource = this.node('a','population-source','populationclock.org · modeled projection');
-    populationSource.href = 'https://populationclock.org/';
-    populationSource.target = '_blank'; populationSource.rel = 'noopener noreferrer';
-    populationFooter.append(populationLabel,populationValue,populationSource);
+    populationFooter.append(populationLabel,populationValue);
     this.loadPopulation(populationValue);
     panels.append(worldSection);
     const debt = this.node('section','stats-section terminal-pane streaming-pane');
